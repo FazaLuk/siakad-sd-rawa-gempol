@@ -58,6 +58,7 @@ let formStudents = [];
 let formSubjects = [];
 let activeSemester = null;
 let activeTahunAjaran = null;
+let formDropdownLoaded = false;
 const rowsPerPage = 5;
 
 /* =========================
@@ -278,14 +279,13 @@ function renderSubjectDropdown(subjects = formSubjects, selectedSubject = "") {
 }
 
 async function renderFormDropdowns() {
+  if (formDropdownLoaded) return;
   try {
-    const homeroomGuru = await getWaliKelas();
+    const [homeroomGuru, mapelData, semesters, tahunAjaran] = await Promise.all(
+      [getWaliKelas(), getMapel(), getSemester(), getTahunAjaran()],
+    );
 
-    formSubjects = await getMapel();
-
-    const semesters = await getSemester();
-
-    const tahunAjaran = await getTahunAjaran();
+    formSubjects = mapelData;
 
     activeTahunAjaran =
       tahunAjaran.find((item) => item.aktif) || tahunAjaran[0] || null;
@@ -345,6 +345,7 @@ async function renderFormDropdowns() {
       !formSubjects.length || !activeSemester || !activeTahunAjaran;
 
     renderSubjectDropdown(formSubjects);
+    formDropdownLoaded = true;
   } catch (error) {
     console.error("Render form dropdown error:", error);
   }
@@ -436,12 +437,13 @@ nilaiGuruId.addEventListener("change", async () => {
   const kelas = await getKelasByWali(guruId);
 
   nilaiClassName.value = kelas?.nama_kelas || "";
-
   nilaiClassName.dataset.classId = kelas?.id_kelas || "";
 
-  formStudents = kelas?.id_kelas
-    ? await getStudentsByClass(kelas.id_kelas)
-    : [];
+  if (kelas?.id_kelas) {
+    formStudents = await getStudentsByClass(kelas.id_kelas);
+  } else {
+    formStudents = [];
+  }
 
   nilaiStudentId.disabled = false;
 
