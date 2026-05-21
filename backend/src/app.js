@@ -45,6 +45,31 @@ const authRoutes = require("./routes/auth.routes");
 app.use(cors());
 app.use(express.json());
 
+app.get("/health", (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: "OK",
+    uptime: process.uptime(),
+  });
+});
+
+app.get("/health/db", async (req, res) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+
+    res.status(200).json({
+      success: true,
+      message: "Database connected",
+    });
+  } catch (error) {
+    res.status(503).json({
+      success: false,
+      message: "Database unavailable",
+      error: error.message,
+    });
+  }
+});
+
 app.get("/", (req, res) => {
   res.json({
     success: true,
