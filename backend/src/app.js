@@ -36,8 +36,8 @@ const absensiRoutes = require("./routes/absensi.routes");
 console.log("LOAD SPK ROUTES");
 const spkRoutes = require("./routes/spk.routes");
 
-console.log("LOAD REPORT ROUTES");
-const reportRoutes = require("./routes/report.routes");
+//console.log("LOAD REPORT ROUTES");
+//const reportRoutes = require("./routes/report.routes");
 
 console.log("LOAD AUTH ROUTES");
 const authRoutes = require("./routes/auth.routes");
@@ -89,6 +89,6 @@ app.use("/api/tahun-ajaran", tahunAjaranRoutes);
 app.use("/api/nilai", nilaiRoutes);
 app.use("/api/absensi", absensiRoutes);
 app.use("/api/spk-bantuan", spkRoutes);
-app.use("/api/reports", reportRoutes);
+//app.use("/api/reports", reportRoutes);
 
 module.exports = app;
