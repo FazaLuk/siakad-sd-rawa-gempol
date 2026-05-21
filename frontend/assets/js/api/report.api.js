@@ -1,6 +1,9 @@
 import apiFetch from "./api.js";
 
-const BASE_URL = "http://localhost:3000/api";
+const BASE_URL =
+  window.location.hostname === "localhost"
+    ? "http://localhost:3000/api"
+    : "https://siakad-sd-rawa-gempol-production.up.railway.app/api";
 
 function buildQuery(params = {}) {
   const query = new URLSearchParams();
@@ -45,7 +48,7 @@ const exportEndpointMap = {
   bantuan: "spk",
 };
 
-export async function downloadReportExport(reportType, params = {}, format = "xlsx") {
+export async function downloadReportExport(reportType, params = {}) {
   const endpoint = exportEndpointMap[reportType];
 
   if (!endpoint) {
@@ -53,12 +56,12 @@ export async function downloadReportExport(reportType, params = {}, format = "xl
   }
 
   const token = localStorage.getItem("token");
-  const query = buildQuery({ ...params, format });
+  const query = buildQuery(params);
   const response = await fetch(
     `${BASE_URL}/reports/export/${endpoint}?${query}`,
     {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
-    }
+    },
   );
 
   if (response.status === 401) {
@@ -85,7 +88,7 @@ export async function downloadReportExport(reportType, params = {}, format = "xl
   const blob = await response.blob();
   const disposition = response.headers.get("Content-Disposition") || "";
   const fileNameMatch = disposition.match(/filename="?([^"]+)"?/i);
-  const fileName = fileNameMatch?.[1] || `laporan.${format === "pdf" ? "pdf" : "xlsx"}`;
+  const fileName = fileNameMatch?.[1] || "laporan.xlsx";
 
   return { blob, fileName };
 }

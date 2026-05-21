@@ -586,8 +586,7 @@ async function exportLaporanExcel() {
   try {
     const result = await downloadReportExport(
       reportType.value,
-      buildExportQueryParams(),
-      "xlsx"
+      buildExportQueryParams()
     );
 
     if (!result) return;
@@ -603,60 +602,6 @@ async function exportLaporanExcel() {
       Export Excel
     `;
   }
-}
-
-async function exportLaporanPdf() {
-  if (!filterClass.value) {
-    alert("Pilih satu kelas terlebih dahulu sebelum export laporan.");
-    return;
-  }
-
-  const pdfBtn = document.getElementById("exportPdfBtn");
-
-  if (pdfBtn) {
-    pdfBtn.disabled = true;
-    pdfBtn.innerHTML = `
-      <i class="bi bi-hourglass-split"></i>
-      Menyiapkan PDF
-    `;
-  }
-
-  try {
-    const result = await downloadReportExport(
-      reportType.value,
-      buildExportQueryParams(),
-      "pdf"
-    );
-
-    if (!result) return;
-
-    downloadExportFile(result.blob, result.fileName);
-  } catch (error) {
-    console.error("Gagal export laporan PDF", error);
-    alert(error.message || "Export PDF gagal. Coba lagi.");
-  } finally {
-    if (pdfBtn) {
-      pdfBtn.disabled = false;
-      pdfBtn.innerHTML = `
-        <i class="bi bi-file-earmark-pdf-fill"></i>
-        Export PDF
-      `;
-    }
-  }
-}
-
-function ensureExportPdfButton() {
-  if (document.getElementById("exportPdfBtn")) return;
-
-  const pdfBtn = exportExcelBtn.cloneNode(true);
-
-  pdfBtn.id = "exportPdfBtn";
-  pdfBtn.innerHTML = `
-    <i class="bi bi-file-earmark-pdf-fill"></i>
-    Export PDF
-  `;
-  pdfBtn.addEventListener("click", exportLaporanPdf);
-  exportExcelBtn.insertAdjacentElement("afterend", pdfBtn);
 }
 
 reportType.addEventListener("change", async () => {
@@ -720,7 +665,6 @@ async function initLaporanPage() {
   await renderClassDropdown();
   await renderSubjectDropdown();
   updateDynamicFilters();
-  ensureExportPdfButton();
   filterLaporan();
 }
 
