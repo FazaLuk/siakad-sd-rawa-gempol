@@ -41,8 +41,8 @@ const absensiRoutes = require("./routes/absensi.routes");
 console.log("LOAD SPK ROUTES");
 const spkRoutes = require("./routes/spk.routes");
 
-//console.log("LOAD REPORT ROUTES");
-//const reportRoutes = require("./routes/report.routes");
+console.log("LOAD REPORT ROUTES");
+const reportRoutes = require("./routes/report.routes");
 
 console.log("LOAD AUTH ROUTES");
 const authRoutes = require("./routes/auth.routes");
