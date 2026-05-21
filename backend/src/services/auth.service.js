@@ -1,5 +1,6 @@
 const prisma = require("../config/db");
 const jwt = require("jsonwebtoken");
+const bcrypt = require("bcrypt");
 
 const loginUser = async (data) => {
   const user = await prisma.users.findUnique({
@@ -12,7 +13,9 @@ const loginUser = async (data) => {
     throw new Error("Username not found");
   }
 
-  if (user.password !== data.password) {
+  const isMatch = await bcrypt.compare(data.password, user.password);
+
+  if (!isMatch) {
     throw new Error("Wrong password");
   }
 
