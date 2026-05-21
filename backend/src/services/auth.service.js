@@ -13,7 +13,12 @@ const loginUser = async (data) => {
     throw new Error("Username not found");
   }
 
+  console.log("INPUT PASSWORD:", data.password);
+  console.log("HASH DATABASE:", user.password);
+
   const isMatch = await bcrypt.compare(data.password, user.password);
+
+  console.log("MATCH:", isMatch);
 
   if (!isMatch) {
     throw new Error("Wrong password");
