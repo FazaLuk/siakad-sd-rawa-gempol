@@ -109,16 +109,16 @@ app.get("/test-db", async (req, res) => {
   }
 });
 
-app.use("/api/students", studentRoutes);
-app.use("/api/guru", guruRoutes);
-app.use("/api/kelas", kelasRoutes);
-app.use("/api/auth", authRoutes);
-app.use("/api/mapel", mapelRoutes);
-app.use("/api/semester", semesterRoutes);
-app.use("/api/tahun-ajaran", tahunAjaranRoutes);
-app.use("/api/nilai", nilaiRoutes);
-app.use("/api/absensi", absensiRoutes);
-app.use("/api/spk-bantuan", spkRoutes);
+//app.use("/api/students", studentRoutes);
+//app.use("/api/guru", guruRoutes);
+//app.use("/api/kelas", kelasRoutes);
+//app.use("/api/auth", authRoutes);
+//app.use("/api/mapel", mapelRoutes);
+//app.use("/api/semester", semesterRoutes);
+//app.use("/api/tahun-ajaran", tahunAjaranRoutes);
+//app.use("/api/nilai", nilaiRoutes);
+//app.use("/api/absensi", absensiRoutes);
+//app.use("/api/spk-bantuan", spkRoutes);
 //app.use("/api/reports", reportRoutes);
 
 module.exports = app;
