@@ -85,8 +85,7 @@ async function getSpkReport(req, res) {
 
 async function exportGradesReport(req, res) {
   try {
-    const format = String(req.query.format || "xlsx").toLowerCase();
-    const payload = await exportReport("nilai", req.query, format);
+    const payload = await exportReport("nilai", req.query);
 
     return sendExportFile(res, payload);
   } catch (error) {
@@ -101,8 +100,7 @@ async function exportGradesReport(req, res) {
 
 async function exportAttendanceReport(req, res) {
   try {
-    const format = String(req.query.format || "xlsx").toLowerCase();
-    const payload = await exportReport("kehadiran", req.query, format);
+    const payload = await exportReport("kehadiran", req.query);
 
     return sendExportFile(res, payload);
   } catch (error) {
@@ -117,8 +115,7 @@ async function exportAttendanceReport(req, res) {
 
 async function exportStudentsReport(req, res) {
   try {
-    const format = String(req.query.format || "xlsx").toLowerCase();
-    const payload = await exportReport("siswa", req.query, format);
+    const payload = await exportReport("siswa", req.query);
 
     return sendExportFile(res, payload);
   } catch (error) {
@@ -133,8 +130,7 @@ async function exportStudentsReport(req, res) {
 
 async function exportSpkReport(req, res) {
   try {
-    const format = String(req.query.format || "xlsx").toLowerCase();
-    const payload = await exportReport("bantuan", req.query, format);
+    const payload = await exportReport("bantuan", req.query);
 
     return sendExportFile(res, payload);
   } catch (error) {

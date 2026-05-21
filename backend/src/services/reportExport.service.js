@@ -3,7 +3,6 @@ const {
   buildReportWorkbook,
   writeWorkbookToBuffer,
 } = require("../utils/reportExcel.util");
-const { generateReportPdf } = require("../utils/reportPdf.util");
 
 const reportTypeMap = {
   grades: "nilai",
@@ -16,7 +15,7 @@ const reportTypeMap = {
   bantuan: "bantuan",
 };
 
-async function exportReport(type, query = {}, format = "xlsx") {
+async function exportReport(type, query = {}) {
   const normalizedType = reportTypeMap[type];
 
   if (!normalizedType) {
@@ -31,19 +30,8 @@ async function exportReport(type, query = {}, format = "xlsx") {
   const { workbook, fileName } = await buildReportWorkbook(
     normalizedType,
     meta,
-    rows
+    rows,
   );
-
-  if (format === "pdf") {
-    const pdfBuffer = await generateReportPdf(normalizedType, meta, rows);
-
-    return {
-      buffer: pdfBuffer,
-      fileName: fileName.replace(/\.xlsx$/i, ".pdf"),
-      contentType: "application/pdf",
-    };
-  }
-
   const xlsxBuffer = await writeWorkbookToBuffer(workbook);
 
   return {
