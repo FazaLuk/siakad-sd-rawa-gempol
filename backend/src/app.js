@@ -78,4 +78,18 @@ app.use("/api/spk-bantuan", spkRoutes);
 
 app.use("/api/reports", reportRoutes);
 
+app.get("/api", (req, res) => {
+  res.json({
+    success: true,
+    message: "SIAKAD API Running",
+  });
+});
+
+app.get("/", (req, res) => {
+  res.json({
+    success: true,
+    message: "SIAKAD Backend Running",
+  });
+});
+
 module.exports = app;
