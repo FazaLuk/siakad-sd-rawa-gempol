@@ -1,0 +1,151 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model absensi {
+  id_absensi      Int          @id @default(autoincrement())
+  id_siswa        Int
+  id_guru         Int
+  id_tahun_ajaran Int
+  tanggal         DateTime     @db.Date
+  status          String       @db.VarChar(20)
+  keterangan      String?
+  guru            guru         @relation(fields: [id_guru], references: [id_guru], onDelete: Cascade, onUpdate: NoAction, map: "fk_absensi_guru")
+  siswa           siswa        @relation(fields: [id_siswa], references: [id_siswa], onDelete: Cascade, onUpdate: NoAction, map: "fk_absensi_siswa")
+  tahun_ajaran    tahun_ajaran @relation(fields: [id_tahun_ajaran], references: [id_tahun_ajaran], onDelete: Cascade, onUpdate: NoAction, map: "fk_absensi_tahun_ajaran")
+
+  @@unique([id_siswa, tanggal])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model guru {
+  id_guru        Int       @id @default(autoincrement())
+  nip            String    @unique @db.VarChar(30)
+  nama_guru      String    @db.VarChar(100)
+  jenis_guru     String    @db.VarChar(100)
+  jenis_kelamin  String?
+  mapel_diampu   String?   @db.VarChar(100)
+
+  absensi        absensi[]
+
+  kelas          kelas?
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model kelas {
+  id_kelas      Int     @id @default(autoincrement())
+  nama_kelas    String  @db.VarChar(20)
+  tingkat       Int
+  id_wali_kelas Int?    @unique
+
+  guru          guru?   @relation(fields: [id_wali_kelas], references: [id_guru], onUpdate: NoAction, map: "fk_kelas_wali")
+
+  siswa         siswa[]
+
+  nilai         nilai[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model mapel {
+  id_mapel   Int     @id @default(autoincrement())
+  nama_mapel String  @db.VarChar(100)
+  kelompok   String  @db.VarChar(30)
+  nilai      nilai[]
+}
+
+model nilai {
+  id_nilai          Int       @id @default(autoincrement())
+
+  id_siswa          Int
+  id_kelas          Int
+  id_mapel          Int
+  id_semester       Int
+  id_tahun_ajaran   Int
+
+  tugas             Decimal   @db.Decimal(5,2)
+  uts                Decimal   @db.Decimal(5,2)
+  uas                Decimal   @db.Decimal(5,2)
+
+  rata_rata         Decimal   @db.Decimal(5,2)
+
+  created_at        DateTime  @default(now())
+  updated_at        DateTime  @updatedAt
+
+  siswa             siswa @relation(fields: [id_siswa], references: [id_siswa])
+
+  kelas             kelas @relation(fields: [id_kelas], references: [id_kelas])
+
+  mapel             mapel @relation(fields: [id_mapel], references: [id_mapel])
+
+  semester          semester @relation(fields: [id_semester], references: [id_semester])
+
+  tahun_ajaran      tahun_ajaran @relation(fields: [id_tahun_ajaran], references: [id_tahun_ajaran])
+
+  @@unique([id_siswa, id_mapel, id_semester, id_tahun_ajaran])
+}
+
+model semester {
+  id_semester     Int          @id @default(autoincrement())
+  id_tahun_ajaran Int
+  nama_semester   String       @db.VarChar(20)
+  urutan          Int
+  aktif           Boolean?     @default(true)
+  nilai           nilai[]
+  tahun_ajaran    tahun_ajaran @relation(fields: [id_tahun_ajaran], references: [id_tahun_ajaran], onDelete: Cascade, onUpdate: NoAction, map: "fk_semester_tahun_ajaran")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model siswa {
+  id_siswa         Int           @id @default(autoincrement())
+  nisn             String        @unique @db.VarChar(20)
+  nama_siswa       String        @db.VarChar(100)
+  jenis_kelamin    String        @db.VarChar(10)
+  tanggal_lahir    DateTime      @db.Date
+  nama_ortu        String        @db.VarChar(100)
+  penghasilan_ortu String        @db.VarChar(20)
+  status_rumah     String        @db.VarChar(20)
+  no_hp_ortu       String?       @db.VarChar(20)
+  id_kelas         Int
+  absensi          absensi[]
+  nilai            nilai[]
+  kelas            kelas         @relation(fields: [id_kelas], references: [id_kelas], onDelete: Cascade, onUpdate: NoAction, map: "fk_siswa_kelas")
+  spk_bantuan      spk_bantuan[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model spk_bantuan {
+  id_spk             Int     @id @default(autoincrement())
+  id_siswa           Int
+  periode            String  @db.VarChar(30)
+  nilai_penghasilan  Decimal @db.Decimal(5, 2)
+  nilai_status_rumah Decimal @db.Decimal(5, 2)
+  hasil_saw          Decimal @db.Decimal(10, 4)
+  ranking            Int?
+  status_rekomendasi String? @db.VarChar(20)
+  keterangan         String?
+  siswa              siswa   @relation(fields: [id_siswa], references: [id_siswa], onDelete: Cascade, onUpdate: NoAction, map: "fk_spk_siswa")
+}
+
+model tahun_ajaran {
+  id_tahun_ajaran Int        @id @default(autoincrement())
+  tahun_mulai     Int
+  tahun_selesai   Int
+  aktif           Boolean?   @default(true)
+  absensi         absensi[]
+  nilai           nilai[]
+  semester        semester[]
+}
+
+model users {
+  id_user    Int       @id @default(autoincrement())
+  username   String    @unique @db.VarChar(100)
+  password   String
+  role       String    @default("admin") @db.VarChar(20)
+  created_at DateTime? @default(now()) @db.Timestamp(6)
+}
