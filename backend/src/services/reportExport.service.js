@@ -31,6 +31,9 @@ async function exportReport(type, query = {}) {
     normalizedType,
     meta,
     rows,
+    {
+      logoUrl: query.logo_url,
+    },
   );
   const xlsxBuffer = await writeWorkbookToBuffer(workbook);
 

@@ -59,6 +59,9 @@ let formSubjects = [];
 let activeSemester = null;
 let activeTahunAjaran = null;
 let formDropdownLoaded = false;
+let formDropdownPromise = null;
+const studentsByClassCache = new Map();
+const classByWaliCache = new Map();
 const rowsPerPage = 5;
 
 /* =========================
@@ -280,38 +283,49 @@ function renderSubjectDropdown(subjects = formSubjects, selectedSubject = "") {
 
 async function renderFormDropdowns() {
   if (formDropdownLoaded) return;
-  try {
-    const [homeroomGuru, mapelData, semesters, tahunAjaran] = await Promise.all(
-      [getWaliKelas(), getMapel(), getSemester(), getTahunAjaran()],
-    );
+  if (formDropdownPromise) return formDropdownPromise;
 
-    formSubjects = mapelData;
+  nilaiGuruId.disabled = true;
+  nilaiSubject.disabled = true;
+  saveNilaiBtn.disabled = true;
 
-    activeTahunAjaran =
-      tahunAjaran.find((item) => item.aktif) || tahunAjaran[0] || null;
+  formDropdownPromise = (async () => {
+    try {
+      const [homeroomGuru, mapelData, semesters, tahunAjaran] =
+        await Promise.all([
+          getWaliKelas(),
+          getMapel(),
+          getSemester(),
+          getTahunAjaran(),
+        ]);
 
-    activeSemester =
-      semesters.find(
-        (item) =>
-          item.aktif &&
-          (!activeTahunAjaran ||
-            Number(item.id_tahun_ajaran) ===
-              Number(activeTahunAjaran.id_tahun_ajaran)),
-      ) ||
-      semesters.find((item) => item.aktif) ||
-      semesters[0] ||
-      null;
+      formSubjects = mapelData;
 
-    if (activeSemester?.id_tahun_ajaran) {
       activeTahunAjaran =
-        tahunAjaran.find(
-          (item) =>
-            Number(item.id_tahun_ajaran) ===
-            Number(activeSemester.id_tahun_ajaran),
-        ) || activeTahunAjaran;
-    }
+        tahunAjaran.find((item) => item.aktif) || tahunAjaran[0] || null;
 
-    nilaiGuruId.innerHTML = `
+      activeSemester =
+        semesters.find(
+          (item) =>
+            item.aktif &&
+            (!activeTahunAjaran ||
+              Number(item.id_tahun_ajaran) ===
+                Number(activeTahunAjaran.id_tahun_ajaran)),
+        ) ||
+        semesters.find((item) => item.aktif) ||
+        semesters[0] ||
+        null;
+
+      if (activeSemester?.id_tahun_ajaran) {
+        activeTahunAjaran =
+          tahunAjaran.find(
+            (item) =>
+              Number(item.id_tahun_ajaran) ===
+              Number(activeSemester.id_tahun_ajaran),
+          ) || activeTahunAjaran;
+      }
+
+      nilaiGuruId.innerHTML = `
       <option value="">
         Pilih wali kelas
       </option>
@@ -335,32 +349,65 @@ async function renderFormDropdowns() {
         .join("")}
     `;
 
-    nilaiStudentSearch.disabled = true;
+      nilaiStudentSearch.disabled = true;
 
-    nilaiStudentId.disabled = true;
+      nilaiStudentId.disabled = true;
 
-    nilaiGuruId.disabled = !homeroomGuru.length;
+      nilaiGuruId.disabled = !homeroomGuru.length;
 
-    saveNilaiBtn.disabled =
-      !formSubjects.length || !activeSemester || !activeTahunAjaran;
+      saveNilaiBtn.disabled =
+        !formSubjects.length || !activeSemester || !activeTahunAjaran;
 
-    renderSubjectDropdown(formSubjects);
-    formDropdownLoaded = true;
-  } catch (error) {
-    console.error("Render form dropdown error:", error);
+      renderSubjectDropdown(formSubjects);
+      formDropdownLoaded = true;
+    } catch (error) {
+      console.error("Render form dropdown error:", error);
+      showToast({
+        type: "error",
+        title: "Dropdown nilai gagal dimuat",
+        message:
+          error.message || "Data dropdown nilai gagal dimuat dari server.",
+      });
+    } finally {
+      formDropdownPromise = null;
+    }
+  })();
+
+  return formDropdownPromise;
+}
+
+async function getCachedKelasByWali(guruId) {
+  const cacheKey = String(guruId);
+
+  if (!guruId) return null;
+  if (!classByWaliCache.has(cacheKey)) {
+    classByWaliCache.set(cacheKey, await getKelasByWali(guruId));
   }
+
+  return classByWaliCache.get(cacheKey);
+}
+
+async function getCachedStudentsByClass(classId) {
+  const cacheKey = String(classId);
+
+  if (!classId) return [];
+  if (!studentsByClassCache.has(cacheKey)) {
+    studentsByClassCache.set(cacheKey, await getStudentsByClass(classId));
+  }
+
+  return studentsByClassCache.get(cacheKey);
 }
 
 /* =========================
    MODAL
 ========================== */
 
-openNilaiModal.addEventListener("click", () => {
+openNilaiModal.addEventListener("click", async () => {
   selectedNilaiId = null;
   setNilaiModalMode("add");
   resetNilaiForm();
-  renderFormDropdowns();
   nilaiModal.classList.add("show");
+  await renderFormDropdowns();
 });
 
 function hideModal() {
@@ -402,13 +449,13 @@ async function fillNilaiForm(selectedNilai) {
   nilaiStudentSearch.value = "";
 
   if (waliKelasId) {
-    const selectedKelas = await getKelasByWali(waliKelasId);
+    const selectedKelas = await getCachedKelasByWali(waliKelasId);
 
     nilaiClassName.value = selectedKelas?.nama_kelas || "";
     nilaiClassName.dataset.classId = selectedKelas?.id_kelas || "";
 
     formStudents = selectedKelas?.id_kelas
-      ? await getStudentsByClass(selectedKelas.id_kelas)
+      ? await getCachedStudentsByClass(selectedKelas.id_kelas)
       : [];
   }
 
@@ -429,27 +476,46 @@ nilaiGuruId.addEventListener("change", async () => {
   nilaiStudentSearch.value = "";
 
   nilaiStudentId.value = "";
+  formStudents = [];
 
   const guruId = nilaiGuruId.value;
 
-  if (!guruId) return;
-
-  const kelas = await getKelasByWali(guruId);
-
-  nilaiClassName.value = kelas?.nama_kelas || "";
-  nilaiClassName.dataset.classId = kelas?.id_kelas || "";
-
-  if (kelas?.id_kelas) {
-    formStudents = await getStudentsByClass(kelas.id_kelas);
-  } else {
-    formStudents = [];
+  if (!guruId) {
+    nilaiClassName.value = "";
+    nilaiClassName.dataset.classId = "";
+    updateSelectedGuruClass();
+    renderStudentDropdown();
+    return;
   }
 
-  nilaiStudentId.disabled = false;
+  nilaiGuruId.disabled = true;
+  nilaiStudentSearch.disabled = true;
+  nilaiStudentId.disabled = true;
 
-  nilaiStudentSearch.disabled = false;
+  try {
+    const kelas = await getCachedKelasByWali(guruId);
 
-  renderStudentDropdown();
+    nilaiClassName.value = kelas?.nama_kelas || "";
+    nilaiClassName.dataset.classId = kelas?.id_kelas || "";
+
+    if (kelas?.id_kelas) {
+      formStudents = await getCachedStudentsByClass(kelas.id_kelas);
+    } else {
+      formStudents = [];
+    }
+
+    updateSelectedGuruClass();
+    renderStudentDropdown();
+  } catch (error) {
+    console.error("Load siswa nilai error:", error);
+    showToast({
+      type: "error",
+      title: "Data siswa gagal dimuat",
+      message: error.message || "Data siswa gagal dimuat dari server.",
+    });
+  } finally {
+    nilaiGuruId.disabled = false;
+  }
 });
 
 nilaiStudentSearch.addEventListener("input", () => {
@@ -592,10 +658,11 @@ function renderNilai(data) {
     return;
   }
 
-  paginatedData.forEach((item, index) => {
+  tableBody.innerHTML = paginatedData
+    .map((item, index) => {
     const averageScore = Number(item.rata_rata);
 
-    tableBody.innerHTML += `
+    return `
       <tr>
         <td>${start + index + 1}</td>
         <td>
@@ -627,31 +694,23 @@ function renderNilai(data) {
         </td>
       </tr>
     `;
-  });
+  })
+    .join("");
 }
 
 function renderPagination(data) {
-  pagination.innerHTML = "";
-
   const totalPages = Math.ceil(data.length / rowsPerPage);
-
-  for (let i = 1; i <= totalPages; i++) {
-    pagination.innerHTML += `
+  pagination.innerHTML = Array.from({ length: totalPages }, (_, index) => {
+    const page = index + 1;
+    return `
       <button
-        class="pagination-btn ${currentPage === i ? "active" : ""}"
-        data-page="${i}"
+        class="pagination-btn ${currentPage === page ? "active" : ""}"
+        data-page="${page}"
       >
-        ${i}
+        ${page}
       </button>
     `;
-  }
-
-  document.querySelectorAll(".pagination-btn").forEach((button) => {
-    button.addEventListener("click", () => {
-      currentPage = Number(button.dataset.page);
-      filterNilai();
-    });
-  });
+  }).join("");
 }
 
 /* =========================
@@ -672,6 +731,14 @@ resetFilterBtn.addEventListener("click", () => {
   searchInput.value = "";
   filterClass.value = "";
   currentPage = 1;
+  filterNilai();
+});
+
+pagination.addEventListener("click", (event) => {
+  const button = event.target.closest(".pagination-btn");
+  if (!button) return;
+
+  currentPage = Number(button.dataset.page);
   filterNilai();
 });
 
@@ -729,11 +796,22 @@ async function editNilai(id) {
 
   if (!selectedNilai) return;
 
-  selectedNilaiId = id;
-  setNilaiModalMode("edit");
-  await renderFormDropdowns();
-  await fillNilaiForm(selectedNilai);
-  nilaiModal.classList.add("show");
+  try {
+    selectedNilaiId = id;
+    setNilaiModalMode("edit");
+    await renderFormDropdowns();
+    await fillNilaiForm(selectedNilai);
+    nilaiModal.classList.add("show");
+  } catch (error) {
+    console.error("Edit nilai form error:", error);
+    selectedNilaiId = null;
+
+    showToast({
+      type: "error",
+      title: "Form nilai gagal dimuat",
+      message: error.message || "Data form nilai gagal dimuat dari server.",
+    });
+  }
 }
 
 function deleteNilai(id) {
@@ -802,11 +880,7 @@ async function loadNilai() {
 }
 
 async function initNilaiPage() {
-  await renderFormDropdowns();
-
-  await loadNilai();
-
-  renderFilterDropdowns();
+  await Promise.all([loadNilai(), renderFilterDropdowns()]);
 }
 
 initNilaiPage();

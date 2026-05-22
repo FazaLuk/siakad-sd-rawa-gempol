@@ -1,9 +1,8 @@
 import apiFetch from "./api.js";
 
-const BASE_URL =
-  window.location.hostname === "localhost"
-    ? "http://localhost:3000/api"
-    : "https://siakad-sd-rawa-gempol-production.up.railway.app/api";
+const BASE_URL = "https://siakad-sd-rawa-gempol-production.up.railway.app/api";
+
+const REPORT_LOGO_URL = `${window.location.origin}/assets/images/logo_kab_tng.png`;
 
 function buildQuery(params = {}) {
   const query = new URLSearchParams();
@@ -56,7 +55,10 @@ export async function downloadReportExport(reportType, params = {}) {
   }
 
   const token = localStorage.getItem("token");
-  const query = buildQuery(params);
+  const query = buildQuery({
+    ...params,
+    logo_url: REPORT_LOGO_URL,
+  });
   const response = await fetch(
     `${BASE_URL}/reports/export/${endpoint}?${query}`,
     {

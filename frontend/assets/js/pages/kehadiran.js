@@ -52,6 +52,9 @@ let waliKelasData = [];
 let kelasData = [];
 let formStudents = [];
 let activeTahunAjaran = null;
+let selectedFormClass = null;
+const studentsByClassCache = new Map();
+const classByWaliCache = new Map();
 const rowsPerPage = 5;
 
 /* =========================
@@ -111,24 +114,58 @@ function getSelectedGuruId() {
   return Number(kehadiranClassId.value);
 }
 
+function getSelectedAttendanceClass() {
+  const selectedOption = kehadiranClassId.selectedOptions[0];
+  const optionClassId = selectedOption?.dataset?.classId;
+
+  if (selectedFormClass) return selectedFormClass;
+  if (optionClassId) return getKelasById(optionClassId);
+
+  return null;
+}
+
+async function getCachedKelasByWali(guruId) {
+  const cacheKey = String(guruId);
+
+  if (!guruId) return null;
+  if (!classByWaliCache.has(cacheKey)) {
+    classByWaliCache.set(cacheKey, await getKelasByWali(guruId));
+  }
+
+  return classByWaliCache.get(cacheKey);
+}
+
+async function getCachedStudentsByClass(classId) {
+  const cacheKey = String(classId);
+
+  if (!classId) return [];
+  if (!studentsByClassCache.has(cacheKey)) {
+    studentsByClassCache.set(cacheKey, await getStudentsByClass(classId));
+  }
+
+  return studentsByClassCache.get(cacheKey);
+}
+
 async function loadStudentsBySelectedWali(selectedStudentId = "") {
   const guruId = getSelectedGuruId();
 
   formStudents = [];
+  selectedFormClass = null;
 
   if (!guruId) {
     renderStudentDropdown(selectedStudentId);
     return null;
   }
 
-  const selectedKelas = await getKelasByWali(guruId);
+  const selectedKelas = await getCachedKelasByWali(guruId);
+  selectedFormClass = selectedKelas || null;
 
   if (selectedKelas && !kelasData.some((item) => item.id_kelas === selectedKelas.id_kelas)) {
     kelasData.push(selectedKelas);
   }
 
   formStudents = selectedKelas?.id_kelas
-    ? await getStudentsByClass(selectedKelas.id_kelas)
+    ? await getCachedStudentsByClass(selectedKelas.id_kelas)
     : [];
 
   renderStudentDropdown(selectedStudentId);
@@ -203,7 +240,7 @@ async function renderClassDropdowns() {
     const waliOptions = waliKelasData
       .map(
         (item) => `
-          <option value="${item.id_guru}">
+          <option value="${item.id_guru}" data-class-id="${item.kelas?.id_kelas || ""}">
             ${item.nama_guru}${
               item.kelas?.nama_kelas ? ` - Wali Kelas ${item.kelas.nama_kelas}` : ""
             }
@@ -280,6 +317,7 @@ function resetKehadiranForm() {
   kehadiranDate.value = getTodayDate();
   kehadiranStatus.value = "";
   formStudents = [];
+  selectedFormClass = null;
 }
 
 function setKehadiranModalMode(mode) {
@@ -311,8 +349,20 @@ cancelModal.addEventListener("click", hideModal);
 kehadiranClassId.addEventListener("change", async () => {
   kehadiranStudentSearch.value = "";
   kehadiranStudentId.value = "";
+  formStudents = [];
+  selectedFormClass = null;
   updateStudentControlState();
-  await loadStudentsBySelectedWali();
+
+  try {
+    await loadStudentsBySelectedWali();
+  } catch (error) {
+    console.error("Load siswa absensi error:", error);
+    showToast({
+      type: "error",
+      title: "Data siswa gagal dimuat",
+      message: error.message || "Data siswa gagal dimuat dari server.",
+    });
+  }
 });
 
 kehadiranStudentSearch.addEventListener("input", () => {
@@ -325,7 +375,7 @@ kehadiranStudentSearch.addEventListener("input", () => {
 
 saveKehadiranBtn.addEventListener("click", async () => {
   const selectedStudent = getStudentById(kehadiranStudentId.value);
-  const selectedClass = selectedStudent ? getKelasById(selectedStudent.id_kelas) : null;
+  const selectedClass = getSelectedAttendanceClass();
   const selectedGuruId = getSelectedGuruId();
 
   if (
@@ -357,6 +407,7 @@ saveKehadiranBtn.addEventListener("click", async () => {
 
   const kehadiranData = {
     id_siswa: Number(selectedStudent.id_siswa),
+    id_kelas: Number(selectedClass.id_kelas),
     id_guru: selectedGuruId,
     id_tahun_ajaran: Number(activeTahunAjaran.id_tahun_ajaran),
     tanggal: kehadiranDate.value,
@@ -422,8 +473,9 @@ function renderKehadiran(data) {
     return;
   }
 
-  paginatedData.forEach((item, index) => {
-    tableBody.innerHTML += `
+  tableBody.innerHTML = paginatedData
+    .map(
+      (item, index) => `
       <tr>
         <td>${start + index + 1}</td>
         <td>
@@ -452,32 +504,24 @@ function renderKehadiran(data) {
           </div>
         </td>
       </tr>
-    `;
-  });
+    `,
+    )
+    .join("");
 }
 
 function renderPagination(data) {
-  pagination.innerHTML = "";
-
   const totalPages = Math.ceil(data.length / rowsPerPage);
-
-  for (let i = 1; i <= totalPages; i++) {
-    pagination.innerHTML += `
+  pagination.innerHTML = Array.from({ length: totalPages }, (_, index) => {
+    const page = index + 1;
+    return `
       <button
-        class="pagination-btn ${currentPage === i ? "active" : ""}"
-        data-page="${i}"
+        class="pagination-btn ${currentPage === page ? "active" : ""}"
+        data-page="${page}"
       >
-        ${i}
+        ${page}
       </button>
     `;
-  }
-
-  document.querySelectorAll(".pagination-btn").forEach((button) => {
-    button.addEventListener("click", () => {
-      currentPage = Number(button.dataset.page);
-      filterKehadiran();
-    });
-  });
+  }).join("");
 }
 
 /* =========================
@@ -504,6 +548,14 @@ resetFilterBtn.addEventListener("click", () => {
   filterClass.value = "";
   filterStatus.value = "";
   currentPage = 1;
+  filterKehadiran();
+});
+
+pagination.addEventListener("click", (event) => {
+  const button = event.target.closest(".pagination-btn");
+  if (!button) return;
+
+  currentPage = Number(button.dataset.page);
   filterKehadiran();
 });
 
@@ -563,10 +615,21 @@ async function editKehadiran(id) {
 
   if (!selectedKehadiran) return;
 
-  selectedKehadiranId = id;
-  setKehadiranModalMode("edit");
-  await fillKehadiranForm(selectedKehadiran);
-  kehadiranModal.classList.add("show");
+  try {
+    selectedKehadiranId = id;
+    setKehadiranModalMode("edit");
+    await fillKehadiranForm(selectedKehadiran);
+    kehadiranModal.classList.add("show");
+  } catch (error) {
+    console.error("Edit absensi form error:", error);
+    selectedKehadiranId = null;
+
+    showToast({
+      type: "error",
+      title: "Form absensi gagal dimuat",
+      message: error.message || "Data form absensi gagal dimuat dari server.",
+    });
+  }
 }
 
 function deleteKehadiran(id) {
@@ -621,10 +684,21 @@ function deleteKehadiran(id) {
 }
 
 async function loadTahunAjaran() {
-  const tahunAjaran = await getTahunAjaran();
+  try {
+    const tahunAjaran = await getTahunAjaran();
 
-  activeTahunAjaran =
-    tahunAjaran.find((item) => item.aktif) || tahunAjaran[0] || null;
+    activeTahunAjaran =
+      tahunAjaran.find((item) => item.aktif) || tahunAjaran[0] || null;
+  } catch (error) {
+    console.error("Load tahun ajaran absensi error:", error);
+    activeTahunAjaran = null;
+
+    showToast({
+      type: "error",
+      title: "Tahun ajaran gagal dimuat",
+      message: error.message || "Tahun ajaran gagal dimuat dari server.",
+    });
+  }
 }
 
 async function loadKehadiran() {

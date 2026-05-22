@@ -12,6 +12,8 @@ const logoPath = path.join(
   "../../../frontend/assets/images/logo_kab_tng.png",
 );
 
+const defaultLogoUrl = process.env.REPORT_LOGO_URL || "";
+
 const reportTypeConfig = {
   nilai: {
     title: "Laporan Nilai",
@@ -126,10 +128,34 @@ function getExportFileName(prefix, className, extension = "xlsx") {
   return `${prefix}-kelas-${classSlug}.${extension}`;
 }
 
-function applySchoolLetterhead(workbook, worksheet) {
+async function getLogoImageBuffer(logoUrl) {
+  const publicLogoUrl = logoUrl || defaultLogoUrl;
+
+  if (publicLogoUrl) {
+    try {
+      const response = await fetch(publicLogoUrl);
+
+      if (response.ok) {
+        return Buffer.from(await response.arrayBuffer());
+      }
+    } catch (error) {
+      console.error("Fetch logo laporan error:", error);
+    }
+  }
+
   if (fs.existsSync(logoPath)) {
+    return fs.readFileSync(logoPath);
+  }
+
+  return null;
+}
+
+async function applySchoolLetterhead(workbook, worksheet, logoUrl) {
+  const logoBuffer = await getLogoImageBuffer(logoUrl);
+
+  if (logoBuffer) {
     const logoImageId = workbook.addImage({
-      filename: logoPath,
+      buffer: logoBuffer,
       extension: "png",
     });
 
@@ -277,7 +303,7 @@ function applyWorksheetLayout(worksheet, columnCount) {
   };
 }
 
-async function buildReportWorkbook(reportType, meta, rows) {
+async function buildReportWorkbook(reportType, meta, rows, options = {}) {
   const config = reportTypeConfig[reportType];
 
   if (!config) {
@@ -286,7 +312,7 @@ async function buildReportWorkbook(reportType, meta, rows) {
 
   const workbook = new ExcelJS.Workbook();
 
-  const worksheet = workbook.addWorksheet("Laporan Nilai");
+  const worksheet = workbook.addWorksheet(config.sheetName);
 
   worksheet.views = [
     {
@@ -317,7 +343,7 @@ async function buildReportWorkbook(reportType, meta, rows) {
   });
 
   applyWorksheetLayout(worksheet, config.headers.length);
-  applySchoolLetterhead(workbook, worksheet);
+  await applySchoolLetterhead(workbook, worksheet, options.logoUrl);
 
   return {
     workbook,

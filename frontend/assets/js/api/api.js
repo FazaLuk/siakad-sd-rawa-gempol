@@ -1,7 +1,4 @@
-const BASE_URL =
-  window.location.hostname === "localhost"
-    ? "http://localhost:3000/api"
-    : "https://siakad-sd-rawa-gempol-production.up.railway.app/api";
+const BASE_URL = "https://siakad-sd-rawa-gempol-production.up.railway.app/api";
 async function apiFetch(endpoint, options = {}) {
   const token = localStorage.getItem("token");
 
